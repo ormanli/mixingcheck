@@ -1,0 +1,12 @@
+github.com/ormanli/mixingcheck:
+  rules:
+    - package:
+        value: github.com/spf13/viper
+      name:
+        value: NewWithOptions
+      type: call
+    - package:
+        value: github.com/ormanli/mixingcheck/internal/config
+      name:
+        value: Packages
+      type: struct
