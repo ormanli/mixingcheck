@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"os"
 	"strings"
 
 	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/ormanli/mixingcheck/internal/config"
 	"golang.org/x/tools/go/analysis"
 )
+
+// Version defines version
+var Version = "development"
 
 func initializeTree(c config.Packages) (*iradix.Tree, error) {
 	r := iradix.New()
@@ -46,25 +50,34 @@ func initializeTree(c config.Packages) (*iradix.Tree, error) {
 }
 
 // NewAnalyzer initializes analysis.Analyzer with given configuration.
-func NewAnalyzer(c config.Packages) (*analysis.Analyzer, error) {
-	tree, err := initializeTree(c)
-	if err != nil {
-		return nil, err
-	}
-
-	runner := runner{tree: tree}
+func NewAnalyzer(c config.Packages, err error) *analysis.Analyzer {
+	runner := runner{}
 
 	analyzer := &analysis.Analyzer{
 		Name: "mixingcheck",
-		Doc:  "mixingcheck",
+		Doc:  fmt.Sprintf("check forbidden structs and method calls. Version %s", Version),
 		Run:  runner.run,
 	}
 
-	return analyzer, nil
+	if err != nil {
+		runner.err = err
+		return analyzer
+	}
+
+	tree, err := initializeTree(c)
+	if err != nil {
+		runner.err = err
+		return analyzer
+	}
+
+	runner.tree = tree
+
+	return analyzer
 }
 
 type runner struct {
 	tree *iradix.Tree
+	err  error
 }
 
 func (r runner) extractImports(file *ast.File) map[string]string {
@@ -86,6 +99,11 @@ func (r runner) extractImports(file *ast.File) map[string]string {
 }
 
 func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
+	if r.err != nil {
+		fmt.Fprintln(os.Stderr, "Error", r.err)
+		os.Exit(1)
+	}
+
 	rules := r.gatherRules(pass.Pkg.Path())
 
 	for _, file := range pass.Files {

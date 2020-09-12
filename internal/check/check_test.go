@@ -35,8 +35,7 @@ func (s *CheckerTestSuite) BeforeTest(_, testName string) {
 	c := s.config[testName]
 	s.Require().NotEmpty(c)
 
-	s.analyzer, err = NewAnalyzer(c)
-	s.Require().NoError(err)
+	s.analyzer = NewAnalyzer(c, nil)
 }
 
 func (s *CheckerTestSuite) SetupSuite() {

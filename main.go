@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/ormanli/mixingcheck/internal/check"
 	"github.com/ormanli/mixingcheck/internal/config"
@@ -10,37 +11,33 @@ import (
 	"golang.org/x/tools/go/analysis/singlechecker"
 )
 
-func initConfig() config.Packages {
+func initConfig() (config.Packages, error) {
 	v := viper.NewWithOptions(viper.KeyDelimiter("::"))
 	v.AddConfigPath(".")
 	v.SetConfigName(".mixingcheck")
 
+	var c config.Packages
+
 	err := v.ReadInConfig()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error while reading config:", err)
-		os.Exit(1)
+		return c, fmt.Errorf("while reading config: %w", err)
 	}
 
 	fmt.Fprintln(os.Stdout, "Using config file:", v.ConfigFileUsed())
 
-	var c config.Packages
-
 	err = v.Unmarshal(&c)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error while unmarshalling config:", err)
-		os.Exit(1)
+		return c, fmt.Errorf("while unmarshalling config: %w", err)
 	}
 
-	return c
+	return c, nil
 }
 
 func main() {
-	c := initConfig()
-	analyzer, err := check.NewAnalyzer(c)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error while initializing analyzer:", err)
-		os.Exit(1)
-	}
+	debug.SetGCPercent(-1)
+
+	c, err := initConfig()
+	analyzer := check.NewAnalyzer(c, err)
 
 	singlechecker.Main(analyzer)
 }
