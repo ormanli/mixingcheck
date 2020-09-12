@@ -2,16 +2,16 @@
 class Mixingcheck < Formula
   desc "search,check and update go modules"
   homepage "https://github.com/ormanli/mixingcheck"
-  version "0.1.0"
+  version "1.0.0"
   bottle :unneeded
 
   if OS.mac?
-    url "https://github.com/ormanli/mixingcheck/releases/download/v0.1.0/mixingcheck_Darwin_x86_64.tar.gz"
-    sha256 "d06bb3876f693b4d645654c8b348f12377d450ae17a24143e79bc1edf6bb0b45"
+    url "https://github.com/ormanli/mixingcheck/releases/download/v1.0.0/mixingcheck_Darwin_x86_64.tar.gz"
+    sha256 "4e050196d994b6b1049889d5120bdbe44bcf85410cedd8449fb2da13e6dd6131"
   elsif OS.linux?
     if Hardware::CPU.intel?
-      url "https://github.com/ormanli/mixingcheck/releases/download/v0.1.0/mixingcheck_Linux_x86_64.tar.gz"
-      sha256 "a68cba86551d61bd066a962c5b79b7e8ed23dbd8cccc5ca2fd7d8639695060ff"
+      url "https://github.com/ormanli/mixingcheck/releases/download/v1.0.0/mixingcheck_Linux_x86_64.tar.gz"
+      sha256 "9be21d2e62ca571647b475d10b0c146a6a2d6d5cbcc3e35fe8ebedee6a571d7f"
     end
   end
 
