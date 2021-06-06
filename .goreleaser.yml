@@ -10,8 +10,10 @@ builds:
     goarch:
       - amd64
       - "386"
+      - arm64
     goarm:
-      - "6"
+      - 6
+      - 7
     main: ./main.go
     ldflags: -s -w -X internal/check.Version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
     binary: mixingcheck
@@ -47,7 +49,7 @@ release:
   draft: true
 brews:
   -
-    github:
+    tap:
       owner: ormanli
       name: mixingcheck
     description: "search,check and update go modules"

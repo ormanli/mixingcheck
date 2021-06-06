@@ -8,7 +8,7 @@ build:
 
 .PHONY: lint
 lint:
-	golint -set_exit_status=1 `go list ./... | grep -v tools`
+	golangci-lint run
 
 .PHONY: test
 test:

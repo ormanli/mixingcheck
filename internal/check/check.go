@@ -12,7 +12,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// Version defines version
+// Version defines version.
 var Version = "development"
 
 func initializeTree(c config.Packages) (*iradix.Tree, error) {
