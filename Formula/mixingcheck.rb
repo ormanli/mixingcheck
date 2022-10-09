@@ -5,33 +5,44 @@
 class Mixingcheck < Formula
   desc "search,check and update go modules"
   homepage "https://github.com/ormanli/mixingcheck"
-  version "1.1.0"
-  bottle :unneeded
+  version "1.2.0"
 
   on_macos do
     if Hardware::CPU.intel?
-      url "https://github.com/ormanli/mixingcheck/releases/download/v1.1.0/mixingcheck_Darwin_x86_64.tar.gz"
-      sha256 "e41b0d41910eafa103019eb6972c7d27d6e657bcc03871811ccb1242898c331c"
+      url "https://github.com/ormanli/mixingcheck/releases/download/v1.2.0/mixingcheck_Darwin_x86_64.tar.gz"
+      sha256 "3771a77780ec3b84d44fc608d908d5d2a87219a9d792fabdc7b1f5dfc51916eb"
+
+      def install
+        bin.install "mixingcheck"
+      end
     end
     if Hardware::CPU.arm?
-      url "https://github.com/ormanli/mixingcheck/releases/download/v1.1.0/mixingcheck_Darwin_arm64.tar.gz"
-      sha256 "f8b6f75e6d8df68c0880884e27bc3648c2109502bb2378ac473be9384f319f86"
+      url "https://github.com/ormanli/mixingcheck/releases/download/v1.2.0/mixingcheck_Darwin_arm64.tar.gz"
+      sha256 "5c59da5192db293a3a43e61f8b5b7f8b0fe0b277468cb74f0200f9116020e9b6"
+
+      def install
+        bin.install "mixingcheck"
+      end
     end
   end
 
   on_linux do
     if Hardware::CPU.intel?
-      url "https://github.com/ormanli/mixingcheck/releases/download/v1.1.0/mixingcheck_Linux_x86_64.tar.gz"
-      sha256 "64b6742fe64ba27d5b430b46ad124eaeaf364e4aad6cbea12c6d8bd26961a312"
+      url "https://github.com/ormanli/mixingcheck/releases/download/v1.2.0/mixingcheck_Linux_x86_64.tar.gz"
+      sha256 "2032fb08b68d0e7d12045c31f0c6b42be89e24ff14e72107bee4dd5590ae9585"
+
+      def install
+        bin.install "mixingcheck"
+      end
     end
     if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
-      url "https://github.com/ormanli/mixingcheck/releases/download/v1.1.0/mixingcheck_Linux_arm64.tar.gz"
-      sha256 "d141832da5ad8486d7aae6b106d91198b94a7b667df88199c2336ec3869245f7"
-    end
-  end
+      url "https://github.com/ormanli/mixingcheck/releases/download/v1.2.0/mixingcheck_Linux_arm64.tar.gz"
+      sha256 "a43dc7ff0ebedb1c9fb1f159bc62e3d9a98801abe92ac1d3b89107f438514e0f"
 
-  def install
-    bin.install "mixingcheck"
+      def install
+        bin.install "mixingcheck"
+      end
+    end
   end
 
   test do
