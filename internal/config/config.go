@@ -10,7 +10,7 @@ type Packages map[string]Package
 
 // Package defines rules for a package.
 type Package struct {
-	IgnoreParentRules bool
+	IgnoreParentRules bool `mapstructure:"ignore_parent_rules"`
 	Rules             []Rule
 }
 
@@ -19,6 +19,9 @@ type Rule struct {
 	Type    RuleType
 	Name    String
 	Package String
+	// Message is the precomputed diagnostic message, populated once the rule
+	// has been validated and compiled.
+	Message string `mapstructure:"-"`
 }
 
 // String is a wrapper around string is either plain string or regular expresion.

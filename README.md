@@ -7,7 +7,7 @@ mixingcheck is a static analyzer to check forbidden structs and method calls.
 Execute:
 
 ```bash
-$ go get github.com/ormanli/mixingcheck
+$ go install github.com/ormanli/mixingcheck@latest
 ```
 
 Or using [Homebrew 🍺](https://brew.sh)
@@ -48,7 +48,7 @@ github.com/ormanli/mixingcheck/internal: #4
 ```
 1. Name of the package you want to execute rules.
 2. The package that contains struct or function you want to check for rule match. 
-3. Type is either struct or call.
+3. Type is either struct or call. A `struct` rule matches any qualified reference to the given identifier (e.g. a variable declaration or return type), not only struct literal instantiation; a `call` rule matches only when it's invoked.
 4. It is possible to define additional rules for child packages.
 5. If a is true, parent packages rules ignored.
 6. If regex is true, value can be a regular expression.

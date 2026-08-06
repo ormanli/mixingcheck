@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"runtime/debug"
 
 	"github.com/ormanli/mixingcheck/internal/check"
 	"github.com/ormanli/mixingcheck/internal/config"
@@ -34,10 +33,17 @@ func initConfig() (config.Packages, error) {
 }
 
 func main() {
-	debug.SetGCPercent(-1)
-
 	c, err := initConfig()
-	analyzer := check.NewAnalyzer(c, err)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error", err)
+		os.Exit(1)
+	}
+
+	analyzer, err := check.NewAnalyzer(c)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error", err)
+		os.Exit(1)
+	}
 
 	singlechecker.Main(analyzer)
 }

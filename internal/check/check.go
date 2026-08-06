@@ -1,15 +1,15 @@
 package check
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
-	"os"
 	"strings"
 
 	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/ormanli/mixingcheck/internal/config"
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 )
 
 // Version defines version.
@@ -20,8 +20,8 @@ func initializeTree(c config.Packages) (*iradix.Tree, error) {
 
 	for name, pkg := range c {
 		for i := range pkg.Rules {
-			if !(pkg.Rules[i].Type == config.StructRule || pkg.Rules[i].Type == config.CallRule) {
-				return nil, fmt.Errorf("rule %d in %s has invalid type", i, pkg.Rules[i].Type)
+			if pkg.Rules[i].Type != config.StructRule && pkg.Rules[i].Type != config.CallRule {
+				return nil, fmt.Errorf("rule %d in %s has invalid type", i, name)
 			}
 
 			if pkg.Rules[i].Package.Value == "" {
@@ -34,13 +34,15 @@ func initializeTree(c config.Packages) (*iradix.Tree, error) {
 			}
 
 			if pkg.Rules[i].Name.Value == "" {
-				return nil, fmt.Errorf("rule %d in %s has empty package", i, name)
+				return nil, fmt.Errorf("rule %d in %s has empty name", i, name)
 			}
 
-			err = pkg.Rules[i].Name.Compile(pkg.Rules[i].Package.Value)
+			err = pkg.Rules[i].Name.Compile(pkg.Rules[i].Name.Value)
 			if err != nil {
 				return nil, fmt.Errorf("rule %d in %s has invalid regex, %w", i, name, err)
 			}
+
+			pkg.Rules[i].Message = pkg.Rules[i].String()
 		}
 
 		r, _, _ = r.Insert([]byte(name), pkg)
@@ -50,34 +52,24 @@ func initializeTree(c config.Packages) (*iradix.Tree, error) {
 }
 
 // NewAnalyzer initializes analysis.Analyzer with given configuration.
-func NewAnalyzer(c config.Packages, err error) *analysis.Analyzer {
-	runner := runner{}
-
-	analyzer := &analysis.Analyzer{
-		Name: "mixingcheck",
-		Doc:  fmt.Sprintf("check forbidden structs and method calls. Version %s", Version),
-		Run:  runner.run,
-	}
-
-	if err != nil {
-		runner.err = err
-		return analyzer
-	}
-
+func NewAnalyzer(c config.Packages) (*analysis.Analyzer, error) {
 	tree, err := initializeTree(c)
 	if err != nil {
-		runner.err = err
-		return analyzer
+		return nil, err
 	}
 
-	runner.tree = tree
+	runner := &runner{tree: tree}
 
-	return analyzer
+	return &analysis.Analyzer{
+		Name:     "mixingcheck",
+		Doc:      fmt.Sprintf("check forbidden structs and method calls. Version %s", Version),
+		Run:      runner.run,
+		Requires: []*analysis.Analyzer{inspect.Analyzer},
+	}, nil
 }
 
 type runner struct {
 	tree *iradix.Tree
-	err  error
 }
 
 func (r runner) extractImports(file *ast.File) map[string]string {
@@ -98,54 +90,55 @@ func (r runner) extractImports(file *ast.File) map[string]string {
 	return m
 }
 
-func (r *runner) run(pass *analysis.Pass) (interface{}, error) {
-	if r.err != nil {
-		fmt.Fprintln(os.Stderr, "Error", r.err)
-		os.Exit(1)
-	}
-
+func (r *runner) run(pass *analysis.Pass) (any, error) {
 	rules := r.gatherRules(pass.Pkg.Path())
-
-	for _, file := range pass.Files {
-		importMap := r.extractImports(file)
-
-		ast.Inspect(file, func(n ast.Node) bool {
-			if cl, ok := n.(*ast.SelectorExpr); ok {
-				diagnostics := checkSelector(cl, rules, importMap)
-				for _, diagnostic := range diagnostics {
-					pass.Report(diagnostic)
-				}
-
-				return true
-			}
-
-			return true
-		})
-
-		ast.Inspect(file, func(n ast.Node) bool {
-			if ce, ok := n.(*ast.CallExpr); ok {
-				diagnostics := checkCall(ce, rules, importMap)
-				for _, diagnostic := range diagnostics {
-					pass.Report(diagnostic)
-				}
-
-				return true
-			}
-
-			return true
-		})
+	if len(rules) == 0 {
+		return nil, nil
 	}
+
+	var structRules, callRules []config.Rule
+	for _, rule := range rules {
+		switch rule.Type {
+		case config.StructRule:
+			structRules = append(structRules, rule)
+		case config.CallRule:
+			callRules = append(callRules, rule)
+		}
+	}
+
+	insp := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+
+	nodeFilter := []ast.Node{
+		(*ast.File)(nil),
+		(*ast.SelectorExpr)(nil),
+		(*ast.CallExpr)(nil),
+	}
+
+	var importMap map[string]string
+
+	insp.Preorder(nodeFilter, func(n ast.Node) {
+		switch node := n.(type) {
+		case *ast.File:
+			importMap = r.extractImports(node)
+		case *ast.SelectorExpr:
+			for _, diagnostic := range checkSelector(node, structRules, importMap) {
+				pass.Report(diagnostic)
+			}
+		case *ast.CallExpr:
+			for _, diagnostic := range checkCall(node, callRules, importMap) {
+				pass.Report(diagnostic)
+			}
+		}
+	})
 
 	return nil, nil
 }
 
 func (r *runner) gatherRules(packageName string) []config.Rule {
 	packageNameAsBytes := []byte(packageName)
-	var otherRules []config.Rule
-	var baseRules []config.Rule
 
-	value, exist := r.tree.Root().Get(packageNameAsBytes)
-	if exist {
+	var baseRules []config.Rule
+	if value, exist := r.tree.Root().Get(packageNameAsBytes); exist {
 		pkg := value.(config.Package)
 
 		if pkg.IgnoreParentRules {
@@ -155,9 +148,19 @@ func (r *runner) gatherRules(packageName string) []config.Rule {
 		baseRules = pkg.Rules
 	}
 
-	r.tree.Root().WalkPath(packageNameAsBytes, func(k []byte, v interface{}) bool {
-		if bytes.Equal(k, packageNameAsBytes) {
-			return true
+	var otherRules []config.Rule
+
+	r.tree.Root().WalkPath(packageNameAsBytes, func(k []byte, v any) bool {
+		// k is always a byte-prefix of packageNameAsBytes (guaranteed by WalkPath),
+		// but a byte-prefix isn't necessarily an ancestor package: "a/c" is a
+		// byte-prefix of "a/cd" without being its parent, so only accept exact
+		// matches (handled above via Get) or matches that end on a "/" boundary.
+		if len(k) == len(packageNameAsBytes) {
+			return false
+		}
+
+		if packageNameAsBytes[len(k)] != '/' {
+			return false
 		}
 
 		pkg := v.(config.Package)
@@ -175,29 +178,32 @@ func (r *runner) gatherRules(packageName string) []config.Rule {
 		otherRules[i], otherRules[j] = otherRules[j], otherRules[i]
 	}
 
-	return append(baseRules, otherRules...)
+	rules := make([]config.Rule, 0, len(baseRules)+len(otherRules))
+	rules = append(rules, baseRules...)
+	rules = append(rules, otherRules...)
+
+	return rules
 }
 
 func checkSelector(se *ast.SelectorExpr, rules []config.Rule, importMap map[string]string) []analysis.Diagnostic {
-	var result []analysis.Diagnostic
-
 	pkg, ok := se.X.(*ast.Ident)
 	if !ok {
 		return nil
 	}
 
+	importPath, ok := importMap[pkg.Name]
+	if !ok {
+		return nil
+	}
+
+	var result []analysis.Diagnostic
+
 	for _, rule := range rules {
-		if rule.Type == config.StructRule {
-			match1 := rule.Name.Match(se.Sel.Name)
-
-			match2 := rule.Package.Match(importMap[pkg.Name])
-
-			if match1 && match2 {
-				result = append(result, analysis.Diagnostic{
-					Pos:     se.Pos(),
-					Message: rule.String(),
-				})
-			}
+		if rule.Name.Match(se.Sel.Name) && rule.Package.Match(importPath) {
+			result = append(result, analysis.Diagnostic{
+				Pos:     se.Pos(),
+				Message: rule.Message,
+			})
 		}
 	}
 
@@ -205,8 +211,6 @@ func checkSelector(se *ast.SelectorExpr, rules []config.Rule, importMap map[stri
 }
 
 func checkCall(ce *ast.CallExpr, rules []config.Rule, importMap map[string]string) []analysis.Diagnostic {
-	var result []analysis.Diagnostic
-
 	se, ok := ce.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return nil
@@ -217,18 +221,19 @@ func checkCall(ce *ast.CallExpr, rules []config.Rule, importMap map[string]strin
 		return nil
 	}
 
+	importPath, ok := importMap[pkg.Name]
+	if !ok {
+		return nil
+	}
+
+	var result []analysis.Diagnostic
+
 	for _, rule := range rules {
-		if rule.Type == config.CallRule {
-			match1 := rule.Name.Match(se.Sel.Name)
-
-			match2 := rule.Package.Match(importMap[pkg.Name])
-
-			if match1 && match2 {
-				result = append(result, analysis.Diagnostic{
-					Pos:     ce.Pos(),
-					Message: rule.String(),
-				})
-			}
+		if rule.Name.Match(se.Sel.Name) && rule.Package.Match(importPath) {
+			result = append(result, analysis.Diagnostic{
+				Pos:     ce.Pos(),
+				Message: rule.Message,
+			})
 		}
 	}
 

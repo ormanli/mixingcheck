@@ -1,21 +1,28 @@
-timeout: 3m
-
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
-    - goimports
-    - golint
-    - gofmt
     - bodyclose
-    - gosimple
-    - prealloc
-    - unused
-    - deadcode
-    - govet
-    - varcheck
-    - ineffassign
-    - whitespace
     - godot
-
-issues:
-  exclude-use-default: false
+    - govet
+    - ineffassign
+    - prealloc
+    - staticcheck
+    - unused
+    - whitespace
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

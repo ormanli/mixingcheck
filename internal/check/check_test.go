@@ -35,7 +35,10 @@ func (s *CheckerTestSuite) BeforeTest(_, testName string) {
 	c := s.config[testName]
 	s.Require().NotEmpty(c)
 
-	s.analyzer = NewAnalyzer(c, nil)
+	analyzer, err := NewAnalyzer(c)
+	s.Require().NoError(err)
+
+	s.analyzer = analyzer
 }
 
 func (s *CheckerTestSuite) SetupSuite() {
@@ -348,6 +351,91 @@ func Test_A(t *testing.T) {
 			},
 		},
 	}
+
+	s.files["Test_NameRegex"] = map[string]string{"a/main.go": `
+package main
+
+import (
+	"a/c"
+)
+
+func main() {
+	c.A()
+}
+`,
+		"a/c/c.go": `
+package c
+
+import (
+	"sort"
+)
+
+func A() []int {
+	ints := []int{9, 8, 7, 6, 5, 4, 3, 2, 1}
+
+	sort.Ints(ints) // want "hit call rule sort.Ints"
+
+	return ints
+}
+`}
+	s.config["Test_NameRegex"] = config.Packages{"a": config.Package{
+		Rules: []config.Rule{
+			{
+				Type: config.CallRule,
+				Name: config.String{
+					Regex: true,
+					Value: "Ints",
+				},
+				Package: config.String{
+					Value: "sort",
+				},
+			},
+		},
+	}}
+
+	// Regression for a bug where the radix tree's byte-prefix matching treated
+	// unrelated sibling packages ("ab") as descendants of a similarly-named
+	// package ("a") purely because one name is a byte-prefix of the other,
+	// without a real "/" path-segment boundary between them.
+	s.files["Test_PathBoundary"] = map[string]string{
+		"a/main.go": `
+package main
+
+import (
+	"sort"
+)
+
+func main() {
+	ints := []int{3, 2, 1}
+	sort.Ints(ints) // want "hit call rule sort.Ints"
+}
+`,
+		"ab/main.go": `
+package main
+
+import (
+	"sort"
+)
+
+func main() {
+	ints := []int{3, 2, 1}
+	sort.Ints(ints)
+}
+`,
+	}
+	s.config["Test_PathBoundary"] = config.Packages{"a": config.Package{
+		Rules: []config.Rule{
+			{
+				Type: config.CallRule,
+				Name: config.String{
+					Value: "Ints",
+				},
+				Package: config.String{
+					Value: "sort",
+				},
+			},
+		},
+	}}
 }
 
 func (s *CheckerTestSuite) TearDownTest() {
@@ -408,4 +496,32 @@ func (s *CheckerTestSuite) Test_Test() {
 	}
 
 	s.Require().ElementsMatch(result, []string{"hit call rule a/c.A"})
+}
+
+func (s *CheckerTestSuite) Test_NameRegex() {
+	got := analysistest.Run(s.T(), s.dir, s.analyzer, "a", "a/c")
+	s.Require().NotEmpty(got)
+
+	var result []string
+	for i := range got {
+		for j := range got[i].Diagnostics {
+			result = append(result, got[i].Diagnostics[j].Message)
+		}
+	}
+
+	s.Require().ElementsMatch(result, []string{"hit call rule sort.Ints"})
+}
+
+func (s *CheckerTestSuite) Test_PathBoundary() {
+	got := analysistest.Run(s.T(), s.dir, s.analyzer, "a", "ab")
+	s.Require().NotEmpty(got)
+
+	var result []string
+	for i := range got {
+		for j := range got[i].Diagnostics {
+			result = append(result, got[i].Diagnostics[j].Message)
+		}
+	}
+
+	s.Require().ElementsMatch(result, []string{"hit call rule sort.Ints"})
 }
