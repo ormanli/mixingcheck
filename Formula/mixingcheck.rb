@@ -5,20 +5,20 @@
 class Mixingcheck < Formula
   desc "Golang static analyzer to check forbidden structs and method calls"
   homepage "https://github.com/ormanli/mixingcheck"
-  version "1.3.0"
+  version "1.3.1"
 
   on_macos do
     if Hardware::CPU.intel?
-      url "https://github.com/ormanli/mixingcheck/releases/download/v1.3.0/mixingcheck_Darwin_x86_64.tar.gz"
-      sha256 "fd9bf4a267eab0d63555d15bacda1179a6bed7cdb6fbcedb4ecadb4aca04a092"
+      url "https://github.com/ormanli/mixingcheck/releases/download/v1.3.1/mixingcheck_Darwin_x86_64.tar.gz"
+      sha256 "056a8b2f2f27b10a6debc28cee8d2e69ef849b74d2feb35cc6d8bb33fbb611f3"
 
       define_method(:install) do
         bin.install "mixingcheck"
       end
     end
     if Hardware::CPU.arm?
-      url "https://github.com/ormanli/mixingcheck/releases/download/v1.3.0/mixingcheck_Darwin_arm64.tar.gz"
-      sha256 "bb9f38c65d11cc637d4673bab7c84463b0d88fec90696e114ab5ee84979ed700"
+      url "https://github.com/ormanli/mixingcheck/releases/download/v1.3.1/mixingcheck_Darwin_arm64.tar.gz"
+      sha256 "80c7555a97f4eeb1319049ca0a541142648f9b9b92fa427ec1492597a3d2baa6"
 
       define_method(:install) do
         bin.install "mixingcheck"
@@ -28,15 +28,15 @@ class Mixingcheck < Formula
 
   on_linux do
     if Hardware::CPU.intel? && Hardware::CPU.is_64_bit?
-      url "https://github.com/ormanli/mixingcheck/releases/download/v1.3.0/mixingcheck_Linux_x86_64.tar.gz"
-      sha256 "7d02d3c0a87dfdb818da6a782af021fbd6d0dbade584a092d164d8ed2b5746d1"
+      url "https://github.com/ormanli/mixingcheck/releases/download/v1.3.1/mixingcheck_Linux_x86_64.tar.gz"
+      sha256 "d1e024b7a706458209a4b7375b308a1294d33446bab617dfece8d7cfeef73723"
       define_method(:install) do
         bin.install "mixingcheck"
       end
     end
     if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
-      url "https://github.com/ormanli/mixingcheck/releases/download/v1.3.0/mixingcheck_Linux_arm64.tar.gz"
-      sha256 "3d2b99591d343a789c2e9ca532356743067dc22b8c9c5e59342890671f931211"
+      url "https://github.com/ormanli/mixingcheck/releases/download/v1.3.1/mixingcheck_Linux_arm64.tar.gz"
+      sha256 "6573a28fd6b5ecaee19249cb63b9caeb00faeff3dc19654b4ba9a312f9af4181"
       define_method(:install) do
         bin.install "mixingcheck"
       end
